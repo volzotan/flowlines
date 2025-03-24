@@ -10,8 +10,8 @@ use imageproc::pixelops::interpolate;
 use chrono::Utc;
 
 const MAX_ITERATIONS: u32 = 100_000;
-const STARTING_POINT_INIT_DISTANCE_WIDTH: u32 = 1;
-const STARTING_POINT_INIT_DISTANCE_HEIGHT: u32 = 1;
+const STARTING_POINT_INIT_DISTANCE_WIDTH: u32 = 10;
+const STARTING_POINT_INIT_DISTANCE_HEIGHT: u32 = 10;
 const SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS: usize = 10;
 
 struct FlowlineHatcher<'a> {
@@ -49,9 +49,8 @@ impl<'a> FlowlineHatcher<'a> {
         }
     }
 
-    fn _map_angle(&self, x: i32, y: i32) -> f64 {
-        PI/4.0
-        // 0.0
+    fn _map_angle(&self, x: u32, y: u32) -> f64 {
+        self.map_angle.get_pixel(x, y)[0] as f64 / 255.0 * PI * 2.0
     }
 
     fn _map_line_distance(&self, x: f64, y: f64) -> f64 {
@@ -78,9 +77,8 @@ impl<'a> FlowlineHatcher<'a> {
         let x1 = p.x();
         let y1 = p.y();
 
-        let rm_x1 = (x1 * self.mapping_factor) as i32;
-        let rm_y1 = (y1 * self.mapping_factor) as i32;
-
+        let rm_x1 = (x1 * self.mapping_factor) as u32;
+        let rm_y1 = (y1 * self.mapping_factor) as u32;
         let a1 = self._map_angle(rm_y1, rm_x1);
 
         // if not self.non_flat[rm_y1, rm_x1] > 1:
@@ -208,7 +206,7 @@ impl<'a> FlowlineHatcher<'a> {
                 }
             }
 
-            // LineString must contain 0 or >= 2 points
+            // line should be >= 2 points
             if line.len() < 2 {
                 continue;
             }
@@ -292,4 +290,14 @@ fn main() {
     }
 
     img_output.save("output.jpg").expect("Failed to save output");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_foo() {
+
+    }
 }
