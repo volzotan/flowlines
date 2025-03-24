@@ -1,7 +1,7 @@
 use chrono::Utc;
 use geo::Point;
 use image::imageops::grayscale;
-use image::{GrayImage, ImageBuffer, ImageReader, Luma, Pixel, Rgb};
+use image::{GrayImage, ImageBuffer, ImageReader, Luma, Rgb};
 use imageproc::drawing::draw_antialiased_line_segment_mut;
 use imageproc::pixelops::interpolate;
 use rstar::RTree;
@@ -9,15 +9,17 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::f64::consts::PI;
 
-const MAX_ITERATIONS: u32 = 100_000;
-const STARTING_POINT_INIT_DISTANCE_WIDTH: i32 = 10;
-const STARTING_POINT_INIT_DISTANCE_HEIGHT: i32 = 10;
-const SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS: usize = 10;
+const MAX_ITERATIONS: u32 = 1_000_000;
+const STARTING_POINT_INIT_DISTANCE_WIDTH: i32 = 5;
+const STARTING_POINT_INIT_DISTANCE_HEIGHT: i32 = 5;
+const SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS: usize = 3;
 
 struct FlowlineHatcher<'a> {
     line_distance: [f64; 2],
+    line_distance_end_factor: f64,
     line_step_distance: f64,
     line_max_segments: [u32; 2],
+    max_angle_discontinuity: f64,
     mapping_factor: f64,
     map_line_distance: &'a GrayImage,
     map_angle: &'a GrayImage,
@@ -41,9 +43,11 @@ impl<'a> FlowlineHatcher<'a> {
         ];
 
         FlowlineHatcher {
-            line_distance: [1.0, 20.0],
-            line_step_distance: 0.5,
-            line_max_segments: [20, 50],
+            line_distance: [2.0, 20.0],
+            line_distance_end_factor: 0.75,
+            line_step_distance: 1.0,
+            line_max_segments: [60, 100],
+            max_angle_discontinuity: PI / 2.0,
             mapping_factor: 1.0,
             map_line_distance,
             map_angle,
@@ -70,11 +74,11 @@ impl<'a> FlowlineHatcher<'a> {
         (self.line_max_segments[0] as f64 + diff * pixel / 255.0) as usize
     }
 
-    fn _collision(&self, tree: &RTree<Point>, x: f64, y: f64) -> bool {
+    fn _collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
         match tree.nearest_neighbor(&Point::new(x, y)) {
             Some(p) => {
                 let dist = ((p.x() - x).powi(2) + (p.y() - y).powi(2)).sqrt();
-                return dist < self._map_line_distance(x, y);
+                return dist < self._map_line_distance(x, y) * factor;
             }
             None => false,
         }
@@ -104,11 +108,19 @@ impl<'a> FlowlineHatcher<'a> {
             return None;
         }
 
-        if self._collision(tree, x2, y2) {
+        if self._collision(tree, x2, y2, self.line_distance_end_factor) {
             return None;
         }
 
-        // TODO: MAX_ANGLE_DISCONTINUITY check
+        if self.max_angle_discontinuity > 0.0 {
+            let rm_x2 = (x2 * self.mapping_factor) as u32;
+            let rm_y2 = (y2 * self.mapping_factor) as u32;
+            let a2 = self._map_angle(rm_x2, rm_y2);
+
+            if (a2 - a1).abs() > self.max_angle_discontinuity {
+                return None;
+            }
+        }
 
         Some(Point::new(x2, y2))
     }
@@ -182,7 +194,7 @@ impl<'a> FlowlineHatcher<'a> {
 
             // valid starting point?
             let starting_point = starting_points.pop_front().unwrap();
-            if self._collision(&tree, starting_point.x(), starting_point.y()) {
+            if self._collision(&tree, starting_point.x(), starting_point.y(), 1.0) {
                 continue;
             }
 
