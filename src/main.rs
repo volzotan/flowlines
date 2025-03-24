@@ -1,13 +1,13 @@
-use std::collections::VecDeque;
-use image::{GrayImage, ImageBuffer, ImageReader, Rgb, Pixel, Luma};
+use chrono::Utc;
+use geo::Point;
 use image::imageops::grayscale;
-use std::f64::consts::PI;
-use geo::{Point};
-use rstar::RTree;
-use std::error::Error;
+use image::{GrayImage, ImageBuffer, ImageReader, Luma, Pixel, Rgb};
 use imageproc::drawing::draw_antialiased_line_segment_mut;
 use imageproc::pixelops::interpolate;
-use chrono::Utc;
+use rstar::RTree;
+use std::collections::VecDeque;
+use std::error::Error;
+use std::f64::consts::PI;
 
 const MAX_ITERATIONS: u32 = 100_000;
 const STARTING_POINT_INIT_DISTANCE_WIDTH: u32 = 10;
@@ -23,18 +23,22 @@ struct FlowlineHatcher<'a> {
     map_angle: &'a GrayImage,
     map_line_max_segments: &'a GrayImage,
     map_non_flat: &'a GrayImage,
-    _bbox: [i32; 4]
+    _bbox: [i32; 4],
 }
 
 impl<'a> FlowlineHatcher<'a> {
-
-    fn new(map_line_distance: &'a GrayImage,
-           map_angle: &'a GrayImage,
-           map_line_max_segments: &'a GrayImage,
-           map_non_flat: &'a GrayImage,
+    fn new(
+        map_line_distance: &'a GrayImage,
+        map_angle: &'a GrayImage,
+        map_line_max_segments: &'a GrayImage,
+        map_non_flat: &'a GrayImage,
     ) -> Self {
-
-        let bbox = [0, 0, map_line_distance.width() as i32, map_line_distance.height() as i32];
+        let bbox = [
+            0,
+            0,
+            map_line_distance.width() as i32,
+            map_line_distance.height() as i32,
+        ];
 
         FlowlineHatcher {
             line_distance: [5.0, 20.0],
@@ -55,7 +59,8 @@ impl<'a> FlowlineHatcher<'a> {
 
     fn _map_line_distance(&self, x: f64, y: f64) -> f64 {
         let pixel = self.map_line_distance.get_pixel(x as u32, y as u32);
-        self.line_distance[0] + (self.line_distance[1] - self.line_distance[0]) * (pixel[0] as f64) / 255.0
+        self.line_distance[0]
+            + (self.line_distance[1] - self.line_distance[0]) * (pixel[0] as f64) / 255.0
     }
 
     fn _map_line_max_segments(&self, x: f64, y: f64) -> usize {
@@ -66,14 +71,13 @@ impl<'a> FlowlineHatcher<'a> {
         match tree.nearest_neighbor(&Point::new(x, y)) {
             Some(p) => {
                 let dist = ((p.x() - x).powi(2) + (p.y() - y).powi(2)).sqrt();
-                return dist < self._map_line_distance(x, y)
-            },
-            None => false
+                return dist < self._map_line_distance(x, y);
+            }
+            None => false,
         }
     }
 
     fn _next_point(&self, tree: &RTree<Point>, p: &Point, forwards: bool) -> Option<Point> {
-
         let x1 = p.x();
         let y1 = p.y();
 
@@ -125,9 +129,9 @@ impl<'a> FlowlineHatcher<'a> {
 
             let mut a2 = a1;
             if i % 2 == 0 {
-                a2 += PI/2.0;
+                a2 += PI / 2.0;
             } else {
-                a2 -= PI/2.0;
+                a2 -= PI / 2.0;
             }
 
             let x4 = self._map_line_distance(x3, y3);
@@ -137,7 +141,7 @@ impl<'a> FlowlineHatcher<'a> {
             let y5 = x4 * a2.sin() + y4 * a2.cos() + y3;
 
             if x5 < 0.0 || x5 >= self._bbox[2] as f64 || y5 < 0.0 || y5 >= self._bbox[3] as f64 {
-                continue
+                continue;
             }
 
             seed_points.push(Point::new(x5, y5));
@@ -156,7 +160,7 @@ impl<'a> FlowlineHatcher<'a> {
             for y in 0..self.map_line_distance.height() / STARTING_POINT_INIT_DISTANCE_HEIGHT {
                 starting_points.push_back(Point::new(
                     (x * STARTING_POINT_INIT_DISTANCE_WIDTH) as f64,
-                    (y * STARTING_POINT_INIT_DISTANCE_HEIGHT) as f64
+                    (y * STARTING_POINT_INIT_DISTANCE_HEIGHT) as f64,
                 ));
             }
         }
@@ -164,7 +168,6 @@ impl<'a> FlowlineHatcher<'a> {
         println!("starting_points: {:?}", starting_points.len());
 
         for i in 0..MAX_ITERATIONS {
-
             if i >= MAX_ITERATIONS - 1 {
                 println!("maximum iterations exceeded");
             }
@@ -189,7 +192,7 @@ impl<'a> FlowlineHatcher<'a> {
                         if line.len() < self._map_line_max_segments(point.x(), point.y()) {
                             line.push_back(point);
                         }
-                    },
+                    }
                     None => break,
                 }
             }
@@ -201,7 +204,7 @@ impl<'a> FlowlineHatcher<'a> {
                         if line.len() < self._map_line_max_segments(point.x(), point.y()) {
                             line.push_front(point);
                         }
-                    },
+                    }
                     None => break,
                 }
             }
@@ -237,7 +240,6 @@ impl<'a> FlowlineHatcher<'a> {
 //     }
 // }
 
-
 fn load_grayscale_image(path: &str) -> ImageBuffer<Luma<u8>, Vec<u8>> {
     let img = ImageReader::open(path)
         .expect("Could not load image")
@@ -254,19 +256,17 @@ fn main() {
     let map_non_flat = load_grayscale_image("test_data/map_non_flat.png");
 
     let timer_start = Utc::now();
-    let hatcher = FlowlineHatcher::new(
-        &map_distance,
-        &map_angle,
-        &map_max_segments,
-        &map_non_flat,
-    );
+    let hatcher = FlowlineHatcher::new(&map_distance, &map_angle, &map_max_segments, &map_non_flat);
     let lines: Vec<VecDeque<Point>> = hatcher.hatch().unwrap();
     let timer_diff = Utc::now() - timer_start;
-    println!("Total time taken to run is {:.3}s", timer_diff.num_milliseconds() as f64 / 1_000.0);
+    println!(
+        "Total time taken to run is {:.3}s",
+        timer_diff.num_milliseconds() as f64 / 1_000.0
+    );
 
-    let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(map_distance.width(), map_distance.height());
+    let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> =
+        ImageBuffer::new(map_distance.width(), map_distance.height());
     for line in lines {
-
         // for point in line.points() {
         //     let pixel = img_output.get_pixel_mut(point.x() as u32, point.y() as u32);
         //     *pixel = image::Rgb([255, 255, 255]);
@@ -275,7 +275,7 @@ fn main() {
         // let point_vec = line.into_points();
         let point_vec = line;
         for i in 1..point_vec.len() {
-            let start = point_vec[i-1];
+            let start = point_vec[i - 1];
             let end = point_vec[i];
             // println!("{:?} -> {:?}", start, end);
 
@@ -284,12 +284,14 @@ fn main() {
                 (start.x() as i32, start.y() as i32),
                 (end.x() as i32, end.y() as i32),
                 Rgb::from([255, 255, 255]),
-                interpolate
+                interpolate,
             );
         }
     }
 
-    img_output.save("output.jpg").expect("Failed to save output");
+    img_output
+        .save("output.jpg")
+        .expect("Failed to save output");
 }
 
 #[cfg(test)]
@@ -297,7 +299,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_foo() {
-
-    }
+    fn test_foo() {}
 }
