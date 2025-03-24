@@ -59,7 +59,7 @@ impl<'a> FlowlineHatcher<'a> {
 
     fn _map_angle(&self, x: u32, y: u32) -> f64 {
         let angle = self.map_angle.get_pixel(x, y)[0] as f64 / 255.0 * PI * 2.0;
-        angle - PI // supplied u8 image is centered around 128 to avoid negative values
+        angle - PI // supplied u8 image is centered around 128 to deal with negative values
     }
 
     fn _map_line_distance(&self, x: f64, y: f64) -> f64 {
@@ -75,13 +75,12 @@ impl<'a> FlowlineHatcher<'a> {
     }
 
     fn _collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
-        match tree.nearest_neighbor(&Point::new(x, y)) {
-            Some(p) => {
-                let dist = ((p.x() - x).powi(2) + (p.y() - y).powi(2)).sqrt();
-                return dist < self._map_line_distance(x, y) * factor;
-            }
-            None => false,
-        }
+        tree.locate_within_distance(
+            Point::new(x, y),
+            (self._map_line_distance(x, y) * factor).powi(2),
+        )
+        .count()
+            > 0
     }
 
     fn _next_point(&self, tree: &RTree<Point>, p: &Point, forwards: bool) -> Option<Point> {
@@ -205,9 +204,11 @@ impl<'a> FlowlineHatcher<'a> {
             for _ in 0..self.line_max_segments[1] {
                 match self._next_point(&tree, line.back().unwrap(), true) {
                     Some(point) => {
-                        if line.len() < self._map_line_max_segments(point.x(), point.y()) {
-                            line.push_back(point);
+                        if line.len() > self._map_line_max_segments(point.x(), point.y()) {
+                            break;
                         }
+
+                        line.push_back(point);
                     }
                     None => break,
                 }
@@ -217,9 +218,11 @@ impl<'a> FlowlineHatcher<'a> {
             for _ in 0..self.line_max_segments[1] {
                 match self._next_point(&tree, line.front().unwrap(), false) {
                     Some(point) => {
-                        if line.len() < self._map_line_max_segments(point.x(), point.y()) {
-                            line.push_front(point);
+                        if line.len() > self._map_line_max_segments(point.x(), point.y()) {
+                            break;
                         }
+
+                        line.push_front(point);
                     }
                     None => break,
                 }
@@ -266,7 +269,6 @@ fn load_grayscale_image(path: &str) -> ImageBuffer<Luma<u8>, Vec<u8>> {
 }
 
 fn main() {
-
     let timer_start = Utc::now();
 
     let map_distance = load_grayscale_image("test_data/map_distance.png");
@@ -275,16 +277,26 @@ fn main() {
     let map_non_flat = load_grayscale_image("test_data/map_non_flat.png");
 
     let timer_diff = Utc::now() - timer_start;
-    println!("Image loading in {:.3}s", timer_diff.num_milliseconds() as f64 / 1_000.0);
+    println!(
+        "Image loading in {:.3}s",
+        timer_diff.num_milliseconds() as f64 / 1_000.0
+    );
 
     let timer_start = Utc::now();
     let hatcher = FlowlineHatcher::new(&map_distance, &map_angle, &map_max_segments, &map_non_flat);
     let lines: Vec<VecDeque<Point>> = hatcher.hatch().unwrap();
     let timer_diff = Utc::now() - timer_start;
-    println!("Hatching in {:.3}s", timer_diff.num_milliseconds() as f64 / 1_000.0);
+    println!(
+        "Hatching in {:.3}s",
+        timer_diff.num_milliseconds() as f64 / 1_000.0
+    );
 
     // let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(map_distance.width(), map_distance.height());
-    let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_pixel(map_distance.width(), map_distance.height(), Rgb([255, 255, 255]));
+    let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_pixel(
+        map_distance.width(),
+        map_distance.height(),
+        Rgb([255, 255, 255]),
+    );
     for line in lines {
         // for point in line.points() {
         //     let pixel = img_output.get_pixel_mut(point.x() as u32, point.y() as u32);
