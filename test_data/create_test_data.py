@@ -31,8 +31,6 @@ def get_slope(data: np.ndarray, sampling_step: int) -> tuple[np.ndarray, np.ndar
     Computes angle (in rad) and magnitude of the given 2D array of values
     """
     test_slice = data[::sampling_step, ::sampling_step]
-    r, c = np.shape(data)
-    Y, X = np.mgrid[0:r:sampling_step, 0:c:sampling_step]
     dY, dX = np.gradient(test_slice)  # order! Y X
 
     angles = np.arctan2(dY, dX)
@@ -53,6 +51,9 @@ with rasterio.open(str(ELEVATION_FILE)) as dataset:
 data[data > 0] = 0  # bathymetry data only
 
 angles, inclination = get_slope(data, 4)
+
+# follow the flowlines
+# angles = (angles + math.pi/2) % math.tau
 
 mapping_angle = angles  # float
 mapping_angle += math.pi # center around math.pi (128) so we avoid negative values
