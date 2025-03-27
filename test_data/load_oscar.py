@@ -46,9 +46,9 @@ with Dataset(INPUT_FILE, "r", format="NETCDF4") as data:
     mapping_non_flat = cv2.resize(mapping_non_flat, resize_dimensions)
     mapping_distance = cv2.resize(mapping_distance, resize_dimensions)
 
-    mapping_max_segments = np.full_like(mapping_angle, 255)
+    mapping_max_length = np.full_like(mapping_angle, 255)
 
     cv2.imwrite(str(Path(OUTPUT_PATH, "map_angle.png")), mapping_angle)
     cv2.imwrite(str(Path(OUTPUT_PATH, "map_non_flat.png")), mapping_non_flat)
     cv2.imwrite(str(Path(OUTPUT_PATH, "map_distance.png")), mapping_distance)
-    cv2.imwrite(str(Path(OUTPUT_PATH, "map_max_segments.png")), mapping_max_segments)
+    cv2.imwrite(str(Path(OUTPUT_PATH, "map_max_length.png")), mapping_max_length)

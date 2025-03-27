@@ -1,9 +1,5 @@
-use chrono::Utc;
 use geo::Point;
-use image::imageops::grayscale;
-use image::{GrayImage, ImageBuffer, ImageReader, Luma, Rgb};
-use imageproc::drawing::draw_antialiased_line_segment_mut;
-use imageproc::pixelops::interpolate;
+use image::{GrayImage, Luma};
 use rstar::RTree;
 use std::collections::VecDeque;
 use std::error::Error;
@@ -16,7 +12,7 @@ pub struct FlowlinesConfig {
     line_distance: [f64; 2],
     line_distance_end_factor: f64,
     line_step_distance: f64,
-    line_max_segments: [u32; 2],
+    line_max_length: [f64; 2],
     max_angle_discontinuity: f64,
     starting_point_init_distance: [i32; 2],
     seedpoint_extraction_skip_line_segments: usize,
@@ -29,7 +25,7 @@ impl Default for FlowlinesConfig {
             line_distance: [3.0, 6.0],
             line_distance_end_factor: 0.75,
             line_step_distance: 0.5,
-            line_max_segments: [100, 1000], //[60, 100],
+            line_max_length: [100.0, 1000.0], //[60, 100],
             max_angle_discontinuity: PI / 2.0,
             starting_point_init_distance: [5, 5],
             seedpoint_extraction_skip_line_segments: SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS,
@@ -40,12 +36,12 @@ impl Default for FlowlinesConfig {
 
 pub struct FlowlinesHatcher<'a> {
     config: FlowlinesConfig,
-    mapping_factor: u32,
     map_line_distance: &'a GrayImage,
     map_angle: &'a GrayImage,
-    map_line_max_segments: &'a GrayImage,
+    map_line_max_length: &'a GrayImage,
     map_non_flat: &'a GrayImage,
-    _bbox: [i32; 4],
+    mapping_factor: u32,
+    bbox: [i32; 4],
 }
 
 impl<'a> FlowlinesHatcher<'a> {
@@ -53,7 +49,7 @@ impl<'a> FlowlinesHatcher<'a> {
         config: FlowlinesConfig,
         map_line_distance: &'a GrayImage,
         map_angle: &'a GrayImage,
-        map_line_max_segments: &'a GrayImage,
+        map_line_max_length: &'a GrayImage,
         map_non_flat: &'a GrayImage,
     ) -> Self {
         let bbox = [
@@ -65,12 +61,12 @@ impl<'a> FlowlinesHatcher<'a> {
 
         FlowlinesHatcher {
             config,
-            mapping_factor: 1,
             map_line_distance,
             map_angle,
-            map_line_max_segments,
+            map_line_max_length,
             map_non_flat,
-            _bbox: bbox,
+            mapping_factor: 1,
+            bbox,
         }
     }
 
@@ -85,10 +81,10 @@ impl<'a> FlowlinesHatcher<'a> {
         self.config.line_distance[0] + diff * pixel / 255.0
     }
 
-    fn _map_line_max_segments(&self, x: f64, y: f64) -> usize {
-        let pixel = self.map_line_max_segments.get_pixel(x as u32, y as u32)[0] as f64;
-        let diff = (self.config.line_max_segments[1] - self.config.line_max_segments[0]) as f64;
-        (self.config.line_max_segments[0] as f64 + diff * pixel / 255.0) as usize
+    fn _map_line_max_length(&self, x: f64, y: f64) -> f64 {
+        let pixel = self.map_line_max_length.get_pixel(x as u32, y as u32)[0] as f64;
+        let diff = (self.config.line_max_length[1] - self.config.line_max_length[0]) as f64;
+        self.config.line_max_length[0] as f64 + diff * pixel / 255.0
     }
 
     fn _collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
@@ -120,7 +116,7 @@ impl<'a> FlowlinesHatcher<'a> {
         let x2 = x1 + self.config.line_step_distance * a1.cos() * dir;
         let y2 = y1 + self.config.line_step_distance * a1.sin() * dir;
 
-        if x2 < 0.0 || x2 >= self._bbox[2] as f64 || y2 < 0.0 || y2 >= self._bbox[3] as f64 {
+        if x2 < 0.0 || x2 >= self.bbox[2] as f64 || y2 < 0.0 || y2 >= self.bbox[3] as f64 {
             return None;
         }
 
@@ -172,7 +168,7 @@ impl<'a> FlowlinesHatcher<'a> {
             let x5 = x4 * a2.cos() - y4 * a2.sin() + x3;
             let y5 = x4 * a2.sin() + y4 * a2.cos() + y3;
 
-            if x5 < 0.0 || x5 >= self._bbox[2] as f64 || y5 < 0.0 || y5 >= self._bbox[3] as f64 {
+            if x5 < 0.0 || x5 >= self.bbox[2] as f64 || y5 < 0.0 || y5 >= self.bbox[3] as f64 {
                 continue;
             }
 
@@ -184,13 +180,12 @@ impl<'a> FlowlinesHatcher<'a> {
     fn _generate_starting_points(&self) -> VecDeque<Point> {
         let mut starting_points: VecDeque<Point> = VecDeque::new();
 
-        for x in 0..(self._bbox[2] - self._bbox[0]) / self.config.starting_point_init_distance[0] {
-            for y in
-                0..(self._bbox[3] - self._bbox[1]) / self.config.starting_point_init_distance[1]
+        for x in 0..(self.bbox[2] - self.bbox[0]) / self.config.starting_point_init_distance[0] {
+            for y in 0..(self.bbox[3] - self.bbox[1]) / self.config.starting_point_init_distance[1]
             {
                 starting_points.push_back(Point::new(
-                    (self._bbox[0] + x * self.config.starting_point_init_distance[0]) as f64,
-                    (self._bbox[1] + y * self.config.starting_point_init_distance[1]) as f64,
+                    (self.bbox[0] + x * self.config.starting_point_init_distance[0]) as f64,
+                    (self.bbox[1] + y * self.config.starting_point_init_distance[1]) as f64,
                 ));
             }
         }
@@ -223,10 +218,12 @@ impl<'a> FlowlinesHatcher<'a> {
             line.push_front(starting_point);
 
             // follow gradient upwards
-            for _ in 0..self.config.line_max_segments[1] {
+            for _ in 0..(self.config.line_max_length[1] / self.config.line_step_distance) as u32 {
                 match self._next_point(&tree, line.back().unwrap(), true) {
                     Some(point) => {
-                        if line.len() > self._map_line_max_segments(point.x(), point.y()) {
+                        if (line.len() as f64 * self.config.line_step_distance)
+                            > self._map_line_max_length(point.x(), point.y())
+                        {
                             break;
                         }
 
@@ -237,10 +234,12 @@ impl<'a> FlowlinesHatcher<'a> {
             }
 
             // follow gradient downwards
-            for _ in 0..self.config.line_max_segments[1] {
+            for _ in 0..(self.config.line_max_length[1] / self.config.line_step_distance) as u32 {
                 match self._next_point(&tree, line.front().unwrap(), false) {
                     Some(point) => {
-                        if line.len() > self._map_line_max_segments(point.x(), point.y()) {
+                        if (line.len() as f64 * self.config.line_step_distance)
+                            > self._map_line_max_length(point.x(), point.y())
+                        {
                             break;
                         }
 
@@ -279,13 +278,13 @@ mod tests {
     fn test_map_angle() {
         let map_distance = GrayImage::new(100, 100);
         let map_angle = GrayImage::from_pixel(100, 100, Luma([127]));
-        let map_max_segments = GrayImage::new(100, 100);
+        let map_max_length = GrayImage::new(100, 100);
         let map_non_flat = GrayImage::new(100, 100);
         let hatcher = FlowlinesHatcher::new(
             FlowlinesConfig::default(),
             &map_distance,
             &map_angle,
-            &map_max_segments,
+            &map_max_length,
             &map_non_flat,
         );
 
@@ -300,7 +299,7 @@ mod tests {
     fn test_generate_starting_points() {
         let map_distance = GrayImage::new(100, 100);
         let map_angle = GrayImage::from_pixel(100, 100, Luma([127]));
-        let map_max_segments = GrayImage::new(100, 100);
+        let map_max_length = GrayImage::new(100, 100);
         let map_non_flat = GrayImage::new(100, 100);
 
         let mut config = FlowlinesConfig::default();
@@ -310,7 +309,7 @@ mod tests {
             config,
             &map_distance,
             &map_angle,
-            &map_max_segments,
+            &map_max_length,
             &map_non_flat,
         );
 
