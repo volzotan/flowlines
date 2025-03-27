@@ -296,13 +296,18 @@ mod tests {
         )
     }
 
+    #[test]
     fn test_generate_starting_points() {
         let map_distance = GrayImage::new(100, 100);
         let map_angle = GrayImage::from_pixel(100, 100, Luma([127]));
         let map_max_segments = GrayImage::new(100, 100);
         let map_non_flat = GrayImage::new(100, 100);
+
+        let mut config = FlowlinesConfig::default();
+        config.starting_point_init_distance = [20, 20];
+
         let hatcher = FlowlinesHatcher::new(
-            FlowlinesConfig::default(),
+            config,
             &map_distance,
             &map_angle,
             &map_max_segments,
@@ -312,9 +317,9 @@ mod tests {
         let starting_points = hatcher._generate_starting_points();
 
         assert_eq!(
-            hatcher._map_angle(50, 50),
-            ((127.0 / 255.0) * TAU) - PI,
-            "_map_angle() expects a u8 image mapping values from [0, 255] -> [-PI, +PI]"
+            starting_points.len(),
+            ((100 / 20) as u32).pow(2) as usize,
+            "incorrect number of starting points"
         )
     }
 }
