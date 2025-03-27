@@ -1,5 +1,5 @@
 use geo::Point;
-use image::{GrayImage, Luma};
+use image::GrayImage;
 use rstar::RTree;
 use std::collections::VecDeque;
 use std::error::Error;
@@ -71,7 +71,7 @@ impl<'a> FlowlinesHatcher<'a> {
     }
 
     fn _map_angle(&self, x: u32, y: u32) -> f64 {
-        let angle = self.map_angle.get_pixel(x, y)[0] as f64 / 255.0 * PI * 2.0;
+        let angle = self.map_angle.get_pixel(x, y)[0] as f64 / 255.0 * TAU;
         angle - PI // supplied u8 image is centered around 128 to deal with negative values
     }
 
@@ -141,13 +141,13 @@ impl<'a> FlowlinesHatcher<'a> {
         let mut num_seedpoints = 1;
         let mut seed_points: Vec<Point> = Vec::new();
 
-        if line.len() > SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS {
-            num_seedpoints = (line.len() - 1) / SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS;
+        if line.len() > self.config.seedpoint_extraction_skip_line_segments {
+            num_seedpoints = (line.len() - 1) / self.config.seedpoint_extraction_skip_line_segments;
         }
 
         for i in 0..num_seedpoints {
-            let (x1, y1) = line[i * SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS].x_y();
-            let (x2, y2) = line[i * SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS + 1].x_y();
+            let (x1, y1) = line[i * self.config.seedpoint_extraction_skip_line_segments].x_y();
+            let (x2, y2) = line[i * self.config.seedpoint_extraction_skip_line_segments + 1].x_y();
 
             // midpoint
             let x3 = x1 + (x2 - x1) / 2.0;
