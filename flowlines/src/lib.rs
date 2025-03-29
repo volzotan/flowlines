@@ -1,5 +1,5 @@
 use geo::Point;
-use image::GrayImage;
+use image::{GrayImage, ImageBuffer, ImageReader, Luma};
 use rstar::RTree;
 use std::collections::VecDeque;
 use std::error::Error;
@@ -70,39 +70,39 @@ impl<'a> FlowlinesHatcher<'a> {
         }
     }
 
-    fn _map_angle(&self, x: u32, y: u32) -> f64 {
+    fn map_angle(&self, x: u32, y: u32) -> f64 {
         let angle = self.map_angle.get_pixel(x, y)[0] as f64 / 255.0 * TAU;
         angle - PI // supplied u8 image is centered around 128 to deal with negative values
     }
 
-    fn _map_line_distance(&self, x: f64, y: f64) -> f64 {
+    fn map_line_distance(&self, x: f64, y: f64) -> f64 {
         let pixel = self.map_line_distance.get_pixel(x as u32, y as u32)[0] as f64;
         let diff = self.config.line_distance[1] - self.config.line_distance[0];
         self.config.line_distance[0] + diff * pixel / 255.0
     }
 
-    fn _map_line_max_length(&self, x: f64, y: f64) -> f64 {
+    fn map_line_max_length(&self, x: f64, y: f64) -> f64 {
         let pixel = self.map_line_max_length.get_pixel(x as u32, y as u32)[0] as f64;
         let diff = (self.config.line_max_length[1] - self.config.line_max_length[0]) as f64;
         self.config.line_max_length[0] as f64 + diff * pixel / 255.0
     }
 
-    fn _collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
+    fn collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
         tree.locate_within_distance(
             Point::new(x, y),
-            (self._map_line_distance(x, y) * factor).powi(2),
+            (self.map_line_distance(x, y) * factor).powi(2),
         )
         .count()
             > 0
     }
 
-    fn _next_point(&self, tree: &RTree<Point>, p: &Point, forwards: bool) -> Option<Point> {
+    fn next_point(&self, tree: &RTree<Point>, p: &Point, forwards: bool) -> Option<Point> {
         let x1 = p.x();
         let y1 = p.y();
 
         let rm_x1 = (x1 * self.mapping_factor as f64) as u32;
         let rm_y1 = (y1 * self.mapping_factor as f64) as u32;
-        let a1 = self._map_angle(rm_x1, rm_y1);
+        let a1 = self.map_angle(rm_x1, rm_y1);
 
         if self.map_non_flat.get_pixel(rm_x1, rm_y1)[0] == 0 {
             return None;
@@ -120,14 +120,14 @@ impl<'a> FlowlinesHatcher<'a> {
             return None;
         }
 
-        if self._collision(tree, x2, y2, self.config.line_distance_end_factor) {
+        if self.collision(tree, x2, y2, self.config.line_distance_end_factor) {
             return None;
         }
 
         if self.config.max_angle_discontinuity > 0.0 {
             let rm_x2 = (x2 * self.mapping_factor as f64) as u32;
             let rm_y2 = (y2 * self.mapping_factor as f64) as u32;
-            let a2 = self._map_angle(rm_x2, rm_y2);
+            let a2 = self.map_angle(rm_x2, rm_y2);
 
             if (a2 - a1).abs() > self.config.max_angle_discontinuity {
                 return None;
@@ -137,7 +137,7 @@ impl<'a> FlowlinesHatcher<'a> {
         Some(Point::new(x2, y2))
     }
 
-    fn _extract_seed_points(&self, line: &VecDeque<Point>) -> Vec<Point> {
+    fn extract_seed_points(&self, line: &VecDeque<Point>) -> Vec<Point> {
         let mut num_seedpoints = 1;
         let mut seed_points: Vec<Point> = Vec::new();
 
@@ -162,7 +162,7 @@ impl<'a> FlowlinesHatcher<'a> {
                 a2 -= PI / 2.0;
             }
 
-            let x4 = self._map_line_distance(x3, y3);
+            let x4 = self.map_line_distance(x3, y3);
             let y4 = 0.0;
 
             let x5 = x4 * a2.cos() - y4 * a2.sin() + x3;
@@ -177,7 +177,7 @@ impl<'a> FlowlinesHatcher<'a> {
         return seed_points;
     }
 
-    fn _generate_starting_points(&self) -> VecDeque<Point> {
+    fn generate_starting_points(&self) -> VecDeque<Point> {
         let mut starting_points: VecDeque<Point> = VecDeque::new();
 
         for x in 0..(self.bbox[2] - self.bbox[0]) / self.config.starting_point_init_distance[0] {
@@ -196,7 +196,7 @@ impl<'a> FlowlinesHatcher<'a> {
     pub fn hatch(&self) -> Result<Vec<VecDeque<Point>>, Box<dyn Error>> {
         let mut tree: RTree<Point> = RTree::new();
         let mut lines: Vec<VecDeque<Point>> = Vec::new();
-        let mut starting_points: VecDeque<Point> = self._generate_starting_points();
+        let mut starting_points: VecDeque<Point> = self.generate_starting_points();
         println!("starting_points: {:?}", starting_points.len());
 
         for i in 0..self.config.max_iterations {
@@ -210,7 +210,7 @@ impl<'a> FlowlinesHatcher<'a> {
 
             // valid starting point?
             let starting_point = starting_points.pop_front().unwrap();
-            if self._collision(&tree, starting_point.x(), starting_point.y(), 1.0) {
+            if self.collision(&tree, starting_point.x(), starting_point.y(), 1.0) {
                 continue;
             }
 
@@ -219,10 +219,10 @@ impl<'a> FlowlinesHatcher<'a> {
 
             // follow gradient upwards
             for _ in 0..(self.config.line_max_length[1] / self.config.line_step_distance) as u32 {
-                match self._next_point(&tree, line.back().unwrap(), true) {
+                match self.next_point(&tree, line.back().unwrap(), true) {
                     Some(point) => {
                         if (line.len() as f64 * self.config.line_step_distance)
-                            > self._map_line_max_length(point.x(), point.y())
+                            > self.map_line_max_length(point.x(), point.y())
                         {
                             break;
                         }
@@ -235,10 +235,10 @@ impl<'a> FlowlinesHatcher<'a> {
 
             // follow gradient downwards
             for _ in 0..(self.config.line_max_length[1] / self.config.line_step_distance) as u32 {
-                match self._next_point(&tree, line.front().unwrap(), false) {
+                match self.next_point(&tree, line.front().unwrap(), false) {
                     Some(point) => {
                         if (line.len() as f64 * self.config.line_step_distance)
-                            > self._map_line_max_length(point.x(), point.y())
+                            > self.map_line_max_length(point.x(), point.y())
                         {
                             break;
                         }
@@ -255,7 +255,7 @@ impl<'a> FlowlinesHatcher<'a> {
             }
 
             // seed points
-            for p in self._extract_seed_points(&line) {
+            for p in self.extract_seed_points(&line) {
                 starting_points.push_front(p);
             }
 
@@ -269,10 +269,10 @@ impl<'a> FlowlinesHatcher<'a> {
         Ok(lines)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::Luma;
 
     #[test]
     fn test_map_angle() {
@@ -289,7 +289,7 @@ mod tests {
         );
 
         assert_eq!(
-            hatcher._map_angle(50, 50),
+            hatcher.map_angle(50, 50),
             ((127.0 / 255.0) * TAU) - PI,
             "_map_angle() expects a u8 image mapping values from [0, 255] -> [-PI, +PI]"
         )
@@ -313,7 +313,7 @@ mod tests {
             &map_non_flat,
         );
 
-        let starting_points = hatcher._generate_starting_points();
+        let starting_points = hatcher.generate_starting_points();
 
         assert_eq!(
             starting_points.len(),

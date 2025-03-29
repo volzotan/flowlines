@@ -1,0 +1,14 @@
+[package]
+name = "pyflowlines"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "pyflowlines"
+
+[dependencies]
+flowlines = { path = "../flowlines" }
+pyo3 = "0.24.0"
+
+geo = "0.29.3"
+image = "0.25.5"
