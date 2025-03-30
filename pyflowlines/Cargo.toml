@@ -5,10 +5,12 @@ edition = "2024"
 
 [lib]
 name = "pyflowlines"
+crate-type = ["cdylib"]
 
 [dependencies]
 flowlines = { path = "../flowlines" }
-pyo3 = "0.24.0"
-
+pyo3 = { version = "0.24.0", features = ["extension-module", "abi3-py37"] }
 geo = "0.29.3"
 image = "0.25.5"
+numpy = "0.24.0"
+ndarray-image = "0.3.0"

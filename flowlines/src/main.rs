@@ -57,8 +57,9 @@ fn main() {
 
     let timer_start = Utc::now();
 
+    let config = FlowlinesConfig::default();
     let hatcher = FlowlinesHatcher::new(
-        FlowlinesConfig::default(),
+        &config,
         &map_distance,
         &map_angle,
         &map_max_length,

@@ -35,7 +35,7 @@ impl Default for FlowlinesConfig {
 }
 
 pub struct FlowlinesHatcher<'a> {
-    config: FlowlinesConfig,
+    config: &'a FlowlinesConfig,
     map_line_distance: &'a GrayImage,
     map_angle: &'a GrayImage,
     map_line_max_length: &'a GrayImage,
@@ -46,7 +46,7 @@ pub struct FlowlinesHatcher<'a> {
 
 impl<'a> FlowlinesHatcher<'a> {
     pub fn new(
-        config: FlowlinesConfig,
+        config: &'a FlowlinesConfig,
         map_line_distance: &'a GrayImage,
         map_angle: &'a GrayImage,
         map_line_max_length: &'a GrayImage,
@@ -281,7 +281,7 @@ mod tests {
         let map_max_length = GrayImage::new(100, 100);
         let map_non_flat = GrayImage::new(100, 100);
         let hatcher = FlowlinesHatcher::new(
-            FlowlinesConfig::default(),
+            &FlowlinesConfig::default(),
             &map_distance,
             &map_angle,
             &map_max_length,
@@ -306,7 +306,7 @@ mod tests {
         config.starting_point_init_distance = [20, 20];
 
         let hatcher = FlowlinesHatcher::new(
-            config,
+            &config,
             &map_distance,
             &map_angle,
             &map_max_length,
