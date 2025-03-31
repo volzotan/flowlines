@@ -18,16 +18,11 @@ fn load_grayscale_image(path: &str) -> ImageBuffer<Luma<u8>, Vec<u8>> {
 
 fn draw_lines_on_image(image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>, lines: &[VecDeque<Point>]) {
     for line in lines {
-        // for point in line.points() {
-        //     let pixel = img_output.get_pixel_mut(point.x() as u32, point.y() as u32);
-        //     *pixel = image::Rgb([255, 255, 255]);
-        // }
-
-        // let point_vec = line.into_points();
         let point_vec = line;
         for i in 1..point_vec.len() {
             let start = point_vec[i - 1];
             let end = point_vec[i];
+            
             // println!("{:?} -> {:?}", start, end);
 
             draw_antialiased_line_segment_mut(

@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use flowlines_rs;
 use geo::Point;
 use image::{GrayImage, ImageBuffer};
 use numpy::ndarray::ArrayViewD;
@@ -10,35 +10,12 @@ use pyo3::{
 };
 use std::collections::VecDeque;
 use std::error::Error;
-use std::f64::consts::PI;
-use flowlines_rs;
 
 fn copy_array_into_grayimage(arr: PyReadonlyArrayDyn<u8>) -> Option<GrayImage> {
     let x: ArrayViewD<'_, u8> = arr.as_array();
     let vec = x.as_standard_layout().iter().copied().collect();
     ImageBuffer::from_raw(x.shape()[1] as u32, x.shape()[0] as u32, vec)
 }
-
-fn copy_array_into_grayimage2(arr: PyReadonlyArrayDyn<u8>) -> Option<GrayImage> {
-    let x: ArrayViewD<'_, u8> = arr.as_array();
-
-    let raw_data = x.as_slice().expect("Array must be contiguous");
-    let data: Cow<[u8]> = Cow::Borrowed(raw_data);
-
-    // Create an ImageBuffer using the borrowed data
-    ImageBuffer::from_raw(x.shape()[1] as u32, x.shape()[0] as u32, data.into())
-}
-
-// fn array_into_imageview(arr: PyReadonlyArrayDyn<u8>) -> Option<&dyn GenericImageView<Pixel = Luma<u8>>> {
-//     let x: ArrayViewD<'_, u8> = arr.as_array();
-//
-//     // let raw_data = x.as_slice().expect("Array must be contiguous");
-//     let raw_data = arr.as_slice().expect("Array must be contiguous");
-//     let image: &dyn GenericImageView<Pixel = Luma<u8>> = raw_data;
-//     println!("{:?}", image.get_pixel(10, 10));
-//     Some(image)
-// }
-
 
 #[pyclass(get_all, set_all)]
 struct FlowlinesConfig {
@@ -71,7 +48,7 @@ impl Into<flowlines_rs::FlowlinesConfig> for &FlowlinesConfig {
             max_angle_discontinuity: self.max_angle_discontinuity,
             starting_point_init_distance: self.starting_point_init_distance,
             seedpoint_extraction_skip_line_segments: self.seedpoint_extraction_skip_line_segments,
-            max_iterations: self.max_iterations
+            max_iterations: self.max_iterations,
         }
     }
 }
@@ -86,7 +63,7 @@ impl From<flowlines_rs::FlowlinesConfig> for FlowlinesConfig {
             max_angle_discontinuity: c.max_angle_discontinuity,
             starting_point_init_distance: c.starting_point_init_distance,
             seedpoint_extraction_skip_line_segments: c.seedpoint_extraction_skip_line_segments,
-            max_iterations: c.max_iterations
+            max_iterations: c.max_iterations,
         }
     }
 }
@@ -100,12 +77,11 @@ fn hatch<'py>(
     map_non_flat: PyReadonlyArrayDyn<'py, u8>,
 ) -> PyResult<Vec<Vec<[f64; 2]>>> {
 
+    let config: flowlines_rs::FlowlinesConfig = config.into();
     let map_distance = copy_array_into_grayimage(map_distance).expect("could not read map_distance");
     let map_angle = copy_array_into_grayimage(map_angle).expect("could not read map_angle");
     let map_max_length = copy_array_into_grayimage(map_max_length).expect("could not read map_max_length");
     let map_non_flat = copy_array_into_grayimage(map_non_flat).expect("could not read map_non_flat");
-
-    let config: flowlines_rs::FlowlinesConfig = config.into();
 
     let hatcher = flowlines_rs::FlowlinesHatcher::new(
         &config,
@@ -122,7 +98,6 @@ fn hatch<'py>(
         .collect();
 
     Ok(lines_vec)
-
 }
 
 #[pymodule]
