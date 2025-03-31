@@ -9,14 +9,14 @@ const MAX_ITERATIONS: u32 = 1_000_000;
 const SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS: usize = 3;
 
 pub struct FlowlinesConfig {
-    line_distance: [f64; 2],
-    line_distance_end_factor: f64,
-    line_step_distance: f64,
-    line_max_length: [f64; 2],
-    max_angle_discontinuity: f64,
-    starting_point_init_distance: [i32; 2],
-    seedpoint_extraction_skip_line_segments: usize,
-    max_iterations: u32,
+    pub line_distance: [f64; 2],
+    pub line_distance_end_factor: f64,
+    pub line_step_distance: f64,
+    pub line_max_length: [f64; 2],
+    pub max_angle_discontinuity: f64,
+    pub starting_point_init_distance: [i32; 2],
+    pub seedpoint_extraction_skip_line_segments: usize,
+    pub max_iterations: u32,
 }
 
 impl Default for FlowlinesConfig {

@@ -1,4 +1,4 @@
-import pyflowlines
+import flowlines_py as flowlines
 import datetime
 from pathlib import Path
 
@@ -23,8 +23,13 @@ map_non_flat = cv2.imread(str(Path(INPUT_DIR, "map_non_flat.png")), cv2.IMREAD_G
 print(f"reading image time: {(datetime.datetime.now()-timer_start).total_seconds():5.2f}s")
 timer_start = datetime.datetime.now()
 
-config = pyflowlines.PyFlowlinesConfig()
-result = pyflowlines.hatch(config, map_distance, map_angle, map_max_length, map_non_flat)
+config2 = flowlines.PyFlowlinesConfig2()
+config2.foo = "narf"
+
+
+config = flowlines.PyFlowlinesConfig()
+result = flowlines.hatch(config, map_distance, map_angle, map_max_length, map_non_flat)
 # pyflowlines.hatch(config)
 
 print(f"data transfer + rust computation time: {(datetime.datetime.now()-timer_start).total_seconds():5.2f}s")
+

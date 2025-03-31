@@ -9,6 +9,7 @@ use pyo3::{
     types::{PyAnyMethods, PyDictMethods, PyModule},
 };
 use std::collections::VecDeque;
+use std::error::Error;
 use std::f64::consts::PI;
 use flowlines_rs;
 
@@ -64,14 +65,52 @@ impl Default for PyFlowlinesConfig2 {
 }
 
 #[pyclass]
-struct PyFlowlinesConfig(flowlines::FlowlinesConfig);
+struct FlowlinesConfig {
+    line_distance: [f64; 2],
+    line_distance_end_factor: f64,
+    line_step_distance: f64,
+    line_max_length: [f64; 2],
+    max_angle_discontinuity: f64,
+    starting_point_init_distance: [i32; 2],
+    seedpoint_extraction_skip_line_segments: usize,
+    max_iterations: u32,
+}
 
 #[pymethods]
-impl PyFlowlinesConfig {
+impl FlowlinesConfig {
     #[new]
     pub fn new() -> Self {
-        PyFlowlinesConfig {
-            0: Default::default(),
+        let c = flowlines_rs::FlowlinesConfig::default();
+        FlowlinesConfig::from(c)
+    }
+}
+
+impl Into<flowlines_rs::FlowlinesConfig> for FlowlinesConfig {
+    fn into(self) -> flowlines_rs::FlowlinesConfig {
+        flowlines_rs::FlowlinesConfig {
+            line_distance: self.line_distance,
+            line_distance_end_factor: self.line_distance_end_factor,
+            line_step_distance: self.line_step_distance,
+            line_max_length: self.line_max_length,
+            max_angle_discontinuity: self.max_angle_discontinuity,
+            starting_point_init_distance: self.starting_point_init_distance,
+            seedpoint_extraction_skip_line_segments: self.seedpoint_extraction_skip_line_segments,
+            max_iterations: self.max_iterations
+        }
+    }
+}
+
+impl From<flowlines_rs::FlowlinesConfig> for FlowlinesConfig {
+    fn from(c: flowlines_rs::FlowlinesConfig) -> Self {
+        FlowlinesConfig {
+            line_distance: c.line_distance,
+            line_distance_end_factor: c.line_distance_end_factor,
+            line_step_distance: c.line_step_distance,
+            line_max_length: c.line_max_length,
+            max_angle_discontinuity: c.max_angle_discontinuity,
+            starting_point_init_distance: c.starting_point_init_distance,
+            seedpoint_extraction_skip_line_segments: c.seedpoint_extraction_skip_line_segments,
+            max_iterations: c.max_iterations
         }
     }
 }
@@ -90,28 +129,34 @@ fn hatch<'py>(
     let map_max_length = copy_array_into_grayimage(map_max_length).expect("could not read map_max_length");
     let map_non_flat = copy_array_into_grayimage(map_non_flat).expect("could not read map_non_flat");
 
-    let hatcher = flowlines::FlowlinesHatcher::new(
-        &config.0,
+    let hatcher = flowlines_rs::FlowlinesHatcher::new(
+        config.into(),
         &map_distance,
         &map_angle,
         &map_max_length,
         &map_non_flat,
     );
-    let lines: Vec<VecDeque<Point>> = hatcher.hatch().unwrap();
 
-    let lines_vec: Vec<Vec<[f64; 2]>> = lines
-        .iter()
-        .map(|ls: &VecDeque<Point>| ls.iter().map(|p: &Point| [p.x(), p.y()]).collect())
-        .collect();
+    match hatcher.hatch() {
+        Ok(lines) => {
+            let lines: Vec<VecDeque<Point>> = hatcher.hatch().unwrap();
 
-    Ok(lines_vec)
+            let lines_vec: Vec<Vec<[f64; 2]>> = lines
+                .iter()
+                .map(|ls: &VecDeque<Point>| ls.iter().map(|p: &Point| [p.x(), p.y()]).collect())
+                .collect();
+
+            Ok(lines_vec)
+        }
+        Err(e) => return Err(PyErr::from(e)),
+    }
 }
 
 #[pymodule]
-fn pyflowlines(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn flowlines_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyFlowlinesConfig2>()?;
 
-    m.add_class::<PyFlowlinesConfig>()?;
+    m.add_class::<FlowlinesConfig>()?;
     m.add_function(wrap_pyfunction!(hatch, m)?)?;
     Ok(())
 }
