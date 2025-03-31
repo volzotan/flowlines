@@ -39,32 +39,8 @@ fn copy_array_into_grayimage2(arr: PyReadonlyArrayDyn<u8>) -> Option<GrayImage> 
 //     Some(image)
 // }
 
-#[pyclass]
-struct PyFlowlinesConfig2 {
-    foo: String,
-    bar: f64,
-}
 
-#[pymethods]
-impl PyFlowlinesConfig2 {
-    #[new]
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-
-}
-
-impl Default for PyFlowlinesConfig2 {
-    fn default() -> PyFlowlinesConfig2 {
-        PyFlowlinesConfig2 {
-            foo: String::from("default"),
-            bar: 0.0
-        }
-    }
-}
-
-#[pyclass]
+#[pyclass(get_all, set_all)]
 struct FlowlinesConfig {
     line_distance: [f64; 2],
     line_distance_end_factor: f64,
@@ -85,7 +61,7 @@ impl FlowlinesConfig {
     }
 }
 
-impl Into<flowlines_rs::FlowlinesConfig> for FlowlinesConfig {
+impl Into<flowlines_rs::FlowlinesConfig> for &FlowlinesConfig {
     fn into(self) -> flowlines_rs::FlowlinesConfig {
         flowlines_rs::FlowlinesConfig {
             line_distance: self.line_distance,
@@ -129,33 +105,28 @@ fn hatch<'py>(
     let map_max_length = copy_array_into_grayimage(map_max_length).expect("could not read map_max_length");
     let map_non_flat = copy_array_into_grayimage(map_non_flat).expect("could not read map_non_flat");
 
+    let config: flowlines_rs::FlowlinesConfig = config.into();
+
     let hatcher = flowlines_rs::FlowlinesHatcher::new(
-        config.into(),
+        &config,
         &map_distance,
         &map_angle,
         &map_max_length,
         &map_non_flat,
     );
 
-    match hatcher.hatch() {
-        Ok(lines) => {
-            let lines: Vec<VecDeque<Point>> = hatcher.hatch().unwrap();
+    let lines = hatcher.hatch().unwrap();
+    let lines_vec: Vec<Vec<[f64; 2]>> = lines
+        .iter()
+        .map(|ls: &VecDeque<Point>| ls.iter().map(|p: &Point| [p.x(), p.y()]).collect())
+        .collect();
 
-            let lines_vec: Vec<Vec<[f64; 2]>> = lines
-                .iter()
-                .map(|ls: &VecDeque<Point>| ls.iter().map(|p: &Point| [p.x(), p.y()]).collect())
-                .collect();
+    Ok(lines_vec)
 
-            Ok(lines_vec)
-        }
-        Err(e) => return Err(PyErr::from(e)),
-    }
 }
 
 #[pymodule]
 fn flowlines_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<PyFlowlinesConfig2>()?;
-
     m.add_class::<FlowlinesConfig>()?;
     m.add_function(wrap_pyfunction!(hatch, m)?)?;
     Ok(())

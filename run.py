@@ -23,11 +23,10 @@ map_non_flat = cv2.imread(str(Path(INPUT_DIR, "map_non_flat.png")), cv2.IMREAD_G
 print(f"reading image time: {(datetime.datetime.now()-timer_start).total_seconds():5.2f}s")
 timer_start = datetime.datetime.now()
 
-config2 = flowlines.PyFlowlinesConfig2()
-config2.foo = "narf"
+config = flowlines.FlowlinesConfig()
 
+config.line_distance = [20.0, 50.0]
 
-config = flowlines.PyFlowlinesConfig()
 result = flowlines.hatch(config, map_distance, map_angle, map_max_length, map_non_flat)
 # pyflowlines.hatch(config)
 
