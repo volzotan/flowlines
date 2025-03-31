@@ -1,5 +1,5 @@
 use chrono::Utc;
-use flowlines::{FlowlinesConfig, FlowlinesHatcher};
+use flowlines_rs::{FlowlinesConfig, FlowlinesHatcher};
 use geo::Point;
 use image::imageops::grayscale;
 use image::{ImageBuffer, ImageReader, Luma, Rgb};

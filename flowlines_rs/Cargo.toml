@@ -1,14 +1,14 @@
 [package]
-name = "flowlines"
+name = "flowlines_rs"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-name = "flowlines"
+name = "flowlines_rs"
 
 [dependencies]
 chrono = "0.4.40"
-geo = "0.29.3"
+geo = "0.30.0"
 image = "0.25.5"
 imageproc = "0.25.0"
 rstar = "0.12.2"

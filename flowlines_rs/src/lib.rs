@@ -204,8 +204,9 @@ impl<'a> FlowlinesHatcher<'a> {
                 println!("maximum iterations exceeded");
             }
 
+            // hatching completed?
             if starting_points.len() == 0 {
-                break; // hatching completed
+                break;
             }
 
             // valid starting point?
@@ -254,16 +255,14 @@ impl<'a> FlowlinesHatcher<'a> {
                 continue;
             }
 
-            // seed points
+            // get net seed points
             for p in self.extract_seed_points(&line) {
                 starting_points.push_front(p);
             }
 
-            // collision detection
             for p in &line {
                 tree.insert(p.clone());
             }
-
             lines.push(line);
         }
         Ok(lines)
