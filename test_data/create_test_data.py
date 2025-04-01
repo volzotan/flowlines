@@ -56,8 +56,8 @@ angles, inclination = get_slope(data, 4)
 # angles = (angles + math.pi/2) % math.tau
 
 mapping_angle = angles  # float
-mapping_angle += math.pi # center around math.pi (128) so we avoid negative values
-mapping_angle = ((mapping_angle / math.tau)*255).astype(np.uint8)
+mapping_angle += math.pi  # center around math.pi (128) so we avoid negative values
+mapping_angle = ((mapping_angle / math.tau) * 255).astype(np.uint8)
 
 mapping_non_flat = np.zeros_like(inclination, dtype=np.uint8)
 mapping_non_flat[inclination > MIN_INCLINATION] = 255  # uint8
@@ -67,7 +67,9 @@ mapping_distance = normalize_to_uint8(data)  # uint8
 WINDOW_SIZE = 25
 MAX_WIN_VAR = 40000
 win_mean = ndimage.uniform_filter(data.astype(float), (WINDOW_SIZE, WINDOW_SIZE))
-win_sqr_mean = ndimage.uniform_filter(data.astype(float) ** 2, (WINDOW_SIZE, WINDOW_SIZE))
+win_sqr_mean = ndimage.uniform_filter(
+    data.astype(float) ** 2, (WINDOW_SIZE, WINDOW_SIZE)
+)
 win_var = win_sqr_mean - win_mean**2
 win_var = np.clip(win_var, 0, MAX_WIN_VAR)
 win_var = win_var * -1 + MAX_WIN_VAR
@@ -78,7 +80,9 @@ mapping_max_segments = win_var
 
 mapping_angle = blur(mapping_angle)
 mapping_distance = blur(mapping_distance)
-mapping_max_segments = blur(mapping_max_segments,)
+mapping_max_segments = blur(
+    mapping_max_segments,
+)
 
 cv2.imwrite(str(Path(OUTPUT_PATH, "map_angle.png")), mapping_angle)
 cv2.imwrite(str(Path(OUTPUT_PATH, "map_non_flat.png")), mapping_non_flat)

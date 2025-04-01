@@ -19,16 +19,13 @@ map_angle = cv2.imread(str(Path(INPUT_DIR, "map_angle.png")), cv2.IMREAD_GRAYSCA
 map_max_length = cv2.imread(str(Path(INPUT_DIR, "map_max_length.png")), cv2.IMREAD_GRAYSCALE)
 map_non_flat = cv2.imread(str(Path(INPUT_DIR, "map_non_flat.png")), cv2.IMREAD_GRAYSCALE)
 
-
 print(f"reading image time: {(datetime.datetime.now()-timer_start).total_seconds():5.2f}s")
 timer_start = datetime.datetime.now()
 
 config = flowlines.FlowlinesConfig()
-
 config.line_distance = [20.0, 50.0]
 
 result = flowlines.hatch(config, map_distance, map_angle, map_max_length, map_non_flat)
-# pyflowlines.hatch(config)
 
 print(f"data transfer + rust computation time: {(datetime.datetime.now()-timer_start).total_seconds():5.2f}s")
 
