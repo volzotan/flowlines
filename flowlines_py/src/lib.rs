@@ -24,7 +24,7 @@ struct FlowlinesConfig {
     line_step_distance: f64,
     line_max_length: [f64; 2],
     max_angle_discontinuity: f64,
-    starting_point_init_distance: [i32; 2],
+    starting_point_init_distance: [f64; 2],
     seedpoint_extraction_skip_line_segments: usize,
     max_iterations: u32,
 }

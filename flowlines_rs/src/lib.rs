@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::f64::consts::{PI, TAU};
 
-const MAX_ITERATIONS: u32 = 1_000_000;
+const MAX_ITERATIONS: u32 = 100_000_000;
 const SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS: usize = 3;
 
 pub struct FlowlinesConfig {
@@ -14,7 +14,7 @@ pub struct FlowlinesConfig {
     pub line_step_distance: f64,
     pub line_max_length: [f64; 2],
     pub max_angle_discontinuity: f64,
-    pub starting_point_init_distance: [i32; 2],
+    pub starting_point_init_distance: [f64; 2],
     pub seedpoint_extraction_skip_line_segments: usize,
     pub max_iterations: u32,
 }
@@ -27,7 +27,7 @@ impl Default for FlowlinesConfig {
             line_step_distance: 0.5,
             line_max_length: [100.0, 1000.0], //[60, 100],
             max_angle_discontinuity: PI / 2.0,
-            starting_point_init_distance: [5, 5],
+            starting_point_init_distance: [5.0, 5.0],
             seedpoint_extraction_skip_line_segments: SEEDPOINT_EXTRACTION_SKIP_LINE_SEGMENTS,
             max_iterations: MAX_ITERATIONS,
         }
@@ -52,12 +52,24 @@ impl<'a> FlowlinesHatcher<'a> {
         map_line_max_length: &'a GrayImage,
         map_non_flat: &'a GrayImage,
     ) -> Self {
+
         let bbox = [
             0,
             0,
             map_line_distance.width() as i32,
             map_line_distance.height() as i32,
         ];
+
+        assert!(config.line_distance[0] > 0.0);
+        assert!(config.line_distance[1] > 0.0);
+        assert!(config.line_distance[0] <= config.line_distance[1]);
+        assert!(config.line_distance_end_factor > 0.0);
+        assert!(config.line_step_distance > 0.0);
+        assert!(config.line_max_length[0] > 0.0);
+        assert!(config.line_max_length[1] > 0.0);
+        assert!(config.line_max_length[0] <= config.line_max_length[1]);
+        assert!(config.starting_point_init_distance[0] > 0.0);
+        assert!(config.starting_point_init_distance[1] > 0.0);
 
         FlowlinesHatcher {
             config,
@@ -180,12 +192,14 @@ impl<'a> FlowlinesHatcher<'a> {
     fn generate_starting_points(&self) -> VecDeque<Point> {
         let mut starting_points: VecDeque<Point> = VecDeque::new();
 
-        for x in 0..(self.bbox[2] - self.bbox[0]) / self.config.starting_point_init_distance[0] {
-            for y in 0..(self.bbox[3] - self.bbox[1]) / self.config.starting_point_init_distance[1]
-            {
+        let width = self.bbox[2] - self.bbox[0];
+        let height = self.bbox[3] - self.bbox[1];
+
+        for x in 0..(width as f64 / self.config.starting_point_init_distance[0]) as i32 {
+            for y in 0..(height as f64 / self.config.starting_point_init_distance[1]) as i32 {
                 starting_points.push_back(Point::new(
-                    (self.bbox[0] + x * self.config.starting_point_init_distance[0]) as f64,
-                    (self.bbox[1] + y * self.config.starting_point_init_distance[1]) as f64,
+                    (self.bbox[0] as f64) + (x as f64) * self.config.starting_point_init_distance[0],
+                    (self.bbox[1] as f64) + (y as f64) * self.config.starting_point_init_distance[1],
                 ));
             }
         }
@@ -197,7 +211,8 @@ impl<'a> FlowlinesHatcher<'a> {
         let mut tree: RTree<Point> = RTree::new();
         let mut lines: Vec<VecDeque<Point>> = Vec::new();
         let mut starting_points: VecDeque<Point> = self.generate_starting_points();
-        println!("starting_points: {:?}", starting_points.len());
+
+        // println!("starting_points: {:?}", starting_points.len());
 
         for i in 0..self.config.max_iterations {
             if i >= self.config.max_iterations - 1 {
@@ -279,8 +294,10 @@ mod tests {
         let map_angle = GrayImage::from_pixel(100, 100, Luma([127]));
         let map_max_length = GrayImage::new(100, 100);
         let map_non_flat = GrayImage::new(100, 100);
+        let config = FlowlinesConfig::default();
+
         let hatcher = FlowlinesHatcher::new(
-            &FlowlinesConfig::default(),
+            &config,
             &map_distance,
             &map_angle,
             &map_max_length,
@@ -291,19 +308,19 @@ mod tests {
             hatcher.map_angle(50, 50),
             ((127.0 / 255.0) * TAU) - PI,
             "_map_angle() expects a u8 image mapping values from [0, 255] -> [-PI, +PI]"
-        )
+        );
     }
 
     #[test]
     fn test_generate_starting_points() {
-        let map_distance = GrayImage::new(100, 100);
-        let map_angle = GrayImage::from_pixel(100, 100, Luma([127]));
-        let map_max_length = GrayImage::new(100, 100);
-        let map_non_flat = GrayImage::new(100, 100);
-
+        let (width, height)  = (200, 100);
+        let map_distance = GrayImage::new(width, height);
+        let map_angle = GrayImage::from_pixel(width, height, Luma([127]));
+        let map_max_length = GrayImage::new(width, height);
+        let map_non_flat = GrayImage::new(width, height);
         let mut config = FlowlinesConfig::default();
-        config.starting_point_init_distance = [20, 20];
 
+        config.starting_point_init_distance = [20.0, 20.0];
         let hatcher = FlowlinesHatcher::new(
             &config,
             &map_distance,
@@ -311,13 +328,28 @@ mod tests {
             &map_max_length,
             &map_non_flat,
         );
-
         let starting_points = hatcher.generate_starting_points();
 
         assert_eq!(
+            ((width as f64 / config.starting_point_init_distance[0]) * (height as f64 / config.starting_point_init_distance[1])) as usize,
             starting_points.len(),
-            ((100 / 20) as u32).pow(2) as usize,
             "incorrect number of starting points"
-        )
+        );
+
+        config.starting_point_init_distance = [0.5, 0.5];
+        let hatcher = FlowlinesHatcher::new(
+            &config,
+            &map_distance,
+            &map_angle,
+            &map_max_length,
+            &map_non_flat,
+        );
+        let starting_points = hatcher.generate_starting_points();
+
+        assert_eq!(
+            (width * height) as usize,
+            starting_points.len(),
+            "incorrect number of starting points when distance is < 1.0 (smaller than a pixel)"
+        );
     }
 }

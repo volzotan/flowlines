@@ -22,7 +22,7 @@ fn draw_lines_on_image(image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>, lines: &[VecDe
         for i in 1..point_vec.len() {
             let start = point_vec[i - 1];
             let end = point_vec[i];
-            
+
             // println!("{:?} -> {:?}", start, end);
 
             draw_antialiased_line_segment_mut(
@@ -52,7 +52,10 @@ fn main() {
 
     let timer_start = Utc::now();
 
-    let config = FlowlinesConfig::default();
+    let mut config = FlowlinesConfig::default();
+
+    config.starting_point_init_distance = [config.line_distance[0] * 1.5, config.line_distance[1] * 1.5];
+
     let hatcher = FlowlinesHatcher::new(
         &config,
         &map_distance,
