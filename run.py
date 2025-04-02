@@ -23,7 +23,7 @@ print(f"reading image time: {(datetime.datetime.now()-timer_start).total_seconds
 timer_start = datetime.datetime.now()
 
 config = flowlines.FlowlinesConfig()
-config.line_distance = [20.0, 50.0]
+config.line_distance = [200.0, 500.0]
 
 result = flowlines.hatch(config, map_distance, map_angle, map_max_length, map_non_flat)
 

@@ -2,7 +2,7 @@ use chrono::Utc;
 use flowlines_rs::{FlowlinesConfig, FlowlinesHatcher};
 use geo::Point;
 use image::imageops::grayscale;
-use image::{ImageBuffer, ImageReader, Luma, Rgb};
+use image::{imageops, ImageBuffer, ImageReader, Luma, Rgb};
 use imageproc::drawing::draw_antialiased_line_segment_mut;
 use imageproc::pixelops::interpolate;
 use std::collections::VecDeque;
@@ -49,12 +49,15 @@ fn main() {
         "Image loading in {:.3}s",
         timer_diff.num_milliseconds() as f64 / 1_000.0
     );
-
     let timer_start = Utc::now();
 
     let mut config = FlowlinesConfig::default();
-
     config.starting_point_init_distance = [config.line_distance[0] * 1.5, config.line_distance[1] * 1.5];
+
+    let map_angle = imageops::blur(&map_angle, 2.0);
+
+    config.line_max_length = [400.0, 500.0];
+    config.line_distance = [3.0, 6.0];
 
     let hatcher = FlowlinesHatcher::new(
         &config,

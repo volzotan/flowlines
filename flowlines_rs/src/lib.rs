@@ -1,5 +1,5 @@
 use geo::Point;
-use image::{GrayImage, ImageBuffer, ImageReader, Luma};
+use image::GrayImage;
 use rstar::RTree;
 use std::collections::VecDeque;
 use std::error::Error;
@@ -286,7 +286,6 @@ impl<'a> FlowlinesHatcher<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::Luma;
 
     #[test]
     fn test_map_angle() {
