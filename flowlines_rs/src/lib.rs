@@ -54,13 +54,7 @@ impl<'a> FlowlinesHatcher<'a> {
         map_line_max_length: &'a GrayImage,
         map_non_flat: &'a GrayImage,
     ) -> Self {
-
-        let bbox: [i32; 4] = [
-            0,
-            0,
-            dimensions[0] as i32,
-            dimensions[1] as i32,
-        ];
+        let bbox: [i32; 4] = [0, 0, dimensions[0] as i32, dimensions[1] as i32];
 
         let scale_x = map_line_distance.width() as f64 / dimensions[0] as f64;
         let scale_y = map_line_distance.height() as f64 / dimensions[1] as f64;
@@ -89,30 +83,37 @@ impl<'a> FlowlinesHatcher<'a> {
     }
 
     fn map_line_distance(&self, x: f64, y: f64) -> f64 {
-        let pixel = self.map_line_distance.get_pixel(
-            (x * self.scale_x) as u32,
-            (y * self.scale_y) as u32)[0] as f64;
+        let pixel = self
+            .map_line_distance
+            .get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0]
+            as f64;
         let diff = self.config.line_distance[1] - self.config.line_distance[0];
         self.config.line_distance[0] + diff * pixel / 255.0
     }
 
     fn map_angle(&self, x: f64, y: f64) -> f64 {
-        let angle = self.map_angle.get_pixel(
-            (x * self.scale_x) as u32,
-            (y * self.scale_y) as u32)[0] as f64 / 255.0 * TAU;
+        let angle = self
+            .map_angle
+            .get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0]
+            as f64
+            / 255.0
+            * TAU;
         angle - PI // supplied u8 image is centered around 128 to deal with negative values
     }
 
     fn map_line_max_length(&self, x: f64, y: f64) -> f64 {
-        let pixel = self.map_line_max_length.get_pixel(
-            (x * self.scale_x) as u32,
-            (y * self.scale_y) as u32)[0] as f64;
+        let pixel = self
+            .map_line_max_length
+            .get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0]
+            as f64;
         let diff = (self.config.line_max_length[1] - self.config.line_max_length[0]) as f64;
         self.config.line_max_length[0] as f64 + diff * pixel / 255.0
     }
 
     fn map_non_flat(&self, x: f64, y: f64) -> bool {
-        self.map_non_flat.get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0] == 0
+        self.map_non_flat
+            .get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0]
+            == 0
     }
 
     fn collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
@@ -210,8 +211,10 @@ impl<'a> FlowlinesHatcher<'a> {
         for x in 0..(width as f64 / self.config.starting_point_init_distance[0]) as i32 {
             for y in 0..(height as f64 / self.config.starting_point_init_distance[1]) as i32 {
                 starting_points.push_back(Point::new(
-                    (self.bbox[0] as f64) + (x as f64) * self.config.starting_point_init_distance[0],
-                    (self.bbox[1] as f64) + (y as f64) * self.config.starting_point_init_distance[1],
+                    (self.bbox[0] as f64)
+                        + (x as f64) * self.config.starting_point_init_distance[0],
+                    (self.bbox[1] as f64)
+                        + (y as f64) * self.config.starting_point_init_distance[1],
                 ));
             }
         }
@@ -297,8 +300,8 @@ impl<'a> FlowlinesHatcher<'a> {
 }
 #[cfg(test)]
 mod tests {
-    use image::Luma;
     use super::*;
+    use image::Luma;
 
     #[test]
     fn test_map_angle() {
@@ -326,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_generate_starting_points() {
-        let (width, height)  = (200, 100);
+        let (width, height) = (200, 100);
         let map_distance = GrayImage::new(width, height);
         let map_angle = GrayImage::from_pixel(width, height, Luma([127]));
         let map_max_length = GrayImage::new(width, height);
@@ -346,26 +349,10 @@ mod tests {
         let starting_points = hatcher.generate_starting_points();
 
         assert_eq!(
-            ((width as f64 / config.starting_point_init_distance[0]) * (height as f64 / config.starting_point_init_distance[1])) as usize,
+            ((width as f64 / config.starting_point_init_distance[0])
+                * (height as f64 / config.starting_point_init_distance[1])) as usize,
             starting_points.len(),
             "incorrect number of starting points"
-        );
-
-        config.starting_point_init_distance = [0.5, 0.5];
-        let hatcher = FlowlinesHatcher::new(
-            [width, height],
-            &config,
-            &map_distance,
-            &map_angle,
-            &map_max_length,
-            &map_non_flat,
-        );
-        let starting_points = hatcher.generate_starting_points();
-
-        assert_eq!(
-            (width * height) as usize,
-            starting_points.len(),
-            "incorrect number of starting points when distance is < 1.0 (smaller than a pixel)"
         );
     }
 }

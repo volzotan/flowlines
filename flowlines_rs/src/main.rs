@@ -2,7 +2,7 @@ use chrono::Utc;
 use flowlines_rs::{FlowlinesConfig, FlowlinesHatcher};
 use geo::Point;
 use image::imageops::grayscale;
-use image::{imageops, ImageBuffer, ImageReader, Luma, Rgb};
+use image::{ImageBuffer, ImageReader, Luma, Rgb, imageops};
 use imageproc::drawing::draw_antialiased_line_segment_mut;
 use imageproc::pixelops::interpolate;
 use std::collections::VecDeque;
@@ -55,7 +55,8 @@ fn main() {
     let height = map_distance.height() * 2;
 
     let mut config = FlowlinesConfig::default();
-    config.starting_point_init_distance = [config.line_distance[0] * 1.5, config.line_distance[1] * 1.5];
+    config.starting_point_init_distance =
+        [config.line_distance[0] * 1.5, config.line_distance[1] * 1.5];
     config.line_max_length = [400.0, 500.0];
     config.line_distance = [6.0, 12.0];
 
@@ -75,11 +76,8 @@ fn main() {
         timer_diff.num_milliseconds() as f64 / 1_000.0
     );
 
-    let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_pixel(
-        width,
-        height,
-        Rgb([255, 255, 255]),
-    );
+    let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> =
+        ImageBuffer::from_pixel(width, height, Rgb([255, 255, 255]));
     draw_lines_on_image(&mut img_output, &lines);
 
     img_output

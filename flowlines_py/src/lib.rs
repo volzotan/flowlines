@@ -77,12 +77,14 @@ fn hatch<'py>(
     map_max_length: PyReadonlyArrayDyn<'py, u8>,
     map_non_flat: PyReadonlyArrayDyn<'py, u8>,
 ) -> PyResult<Vec<Vec<[f64; 2]>>> {
-
     let config: flowlines_rs::FlowlinesConfig = config.into();
-    let map_distance = copy_array_into_grayimage(map_distance).expect("could not read map_distance");
+    let map_distance =
+        copy_array_into_grayimage(map_distance).expect("could not read map_distance");
     let map_angle = copy_array_into_grayimage(map_angle).expect("could not read map_angle");
-    let map_max_length = copy_array_into_grayimage(map_max_length).expect("could not read map_max_length");
-    let map_non_flat = copy_array_into_grayimage(map_non_flat).expect("could not read map_non_flat");
+    let map_max_length =
+        copy_array_into_grayimage(map_max_length).expect("could not read map_max_length");
+    let map_non_flat =
+        copy_array_into_grayimage(map_non_flat).expect("could not read map_non_flat");
 
     let hatcher = flowlines_rs::FlowlinesHatcher::new(
         [dimensions[0], dimensions[1]],
