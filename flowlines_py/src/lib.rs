@@ -1,15 +1,11 @@
 use flowlines_rs;
 use geo::Point;
 use image::{GrayImage, ImageBuffer};
+use numpy::PyReadonlyArrayDyn;
 use numpy::ndarray::ArrayViewD;
-use numpy::{IntoPyArray, PyArrayMethods, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
-use pyo3::{
-    Bound, FromPyObject, PyResult, pymodule,
-    types::{PyAnyMethods, PyDictMethods, PyModule},
-};
+use pyo3::{Bound, PyResult, pymodule, types::PyModule};
 use std::collections::VecDeque;
-use std::error::Error;
 
 fn copy_array_into_grayimage(arr: PyReadonlyArrayDyn<u8>) -> Option<GrayImage> {
     let x: ArrayViewD<'_, u8> = arr.as_array();
