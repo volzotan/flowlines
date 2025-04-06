@@ -23,8 +23,6 @@ fn draw_lines_on_image(image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>, lines: &[VecDe
             let start = point_vec[i - 1];
             let end = point_vec[i];
 
-            // println!("{:?} -> {:?}", start, end);
-
             draw_antialiased_line_segment_mut(
                 image,
                 (start.x() as i32, start.y() as i32),
@@ -51,15 +49,18 @@ fn main() {
     );
     let timer_start = Utc::now();
 
-    let mut config = FlowlinesConfig::default();
-    config.starting_point_init_distance = [config.line_distance[0] * 1.5, config.line_distance[1] * 1.5];
-
     let map_angle = imageops::blur(&map_angle, 2.0);
 
+    let width = map_distance.width() * 2;
+    let height = map_distance.height() * 2;
+
+    let mut config = FlowlinesConfig::default();
+    config.starting_point_init_distance = [config.line_distance[0] * 1.5, config.line_distance[1] * 1.5];
     config.line_max_length = [400.0, 500.0];
-    config.line_distance = [3.0, 6.0];
+    config.line_distance = [6.0, 12.0];
 
     let hatcher = FlowlinesHatcher::new(
+        [width, height],
         &config,
         &map_distance,
         &map_angle,
@@ -75,8 +76,8 @@ fn main() {
     );
 
     let mut img_output: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_pixel(
-        map_distance.width(),
-        map_distance.height(),
+        width,
+        height,
         Rgb([255, 255, 255]),
     );
     draw_lines_on_image(&mut img_output, &lines);

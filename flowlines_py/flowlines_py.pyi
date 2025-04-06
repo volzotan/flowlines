@@ -17,6 +17,7 @@ class FlowlinesConfig:
     def __init__() -> None: ...
 
 def hatch(
+    dimensions: tuple[int, int],
     config: FlowlinesConfig,
     map_distance: np.ndarray,
     map_angle: np.ndarray,
@@ -27,6 +28,7 @@ def hatch(
     Calculate hatching flowlines with the Rust implementation of the algorithm by Jobart and Lefer
     presented in "Creating Evenly-Spaced Streamlines of Arbitrary Density"
 
+    :param dimensions: (width, height) as unsigned integer values
     :param config: settings in a FlowlinesConfig instance
     :param map_distance: numpy uint8 ndarray, mapping the config.line_distance values to a pixel location
     :param map_angle: numpy uint8 ndarray, providing the orientation for the line to follow at each pixel location

@@ -40,12 +40,14 @@ pub struct FlowlinesHatcher<'a> {
     map_angle: &'a GrayImage,
     map_line_max_length: &'a GrayImage,
     map_non_flat: &'a GrayImage,
-    mapping_factor: u32,
+    scale_x: f64,
+    scale_y: f64,
     bbox: [i32; 4],
 }
 
 impl<'a> FlowlinesHatcher<'a> {
     pub fn new(
+        dimensions: [u32; 2],
         config: &'a FlowlinesConfig,
         map_line_distance: &'a GrayImage,
         map_angle: &'a GrayImage,
@@ -53,12 +55,15 @@ impl<'a> FlowlinesHatcher<'a> {
         map_non_flat: &'a GrayImage,
     ) -> Self {
 
-        let bbox = [
+        let bbox: [i32; 4] = [
             0,
             0,
-            map_line_distance.width() as i32,
-            map_line_distance.height() as i32,
+            dimensions[0] as i32,
+            dimensions[1] as i32,
         ];
+
+        let scale_x = map_line_distance.width() as f64 / dimensions[0] as f64;
+        let scale_y = map_line_distance.height() as f64 / dimensions[1] as f64;
 
         assert!(config.line_distance[0] > 0.0);
         assert!(config.line_distance[1] > 0.0);
@@ -77,26 +82,37 @@ impl<'a> FlowlinesHatcher<'a> {
             map_angle,
             map_line_max_length,
             map_non_flat,
-            mapping_factor: 1,
+            scale_x,
+            scale_y,
             bbox,
         }
     }
 
-    fn map_angle(&self, x: u32, y: u32) -> f64 {
-        let angle = self.map_angle.get_pixel(x, y)[0] as f64 / 255.0 * TAU;
-        angle - PI // supplied u8 image is centered around 128 to deal with negative values
-    }
-
     fn map_line_distance(&self, x: f64, y: f64) -> f64 {
-        let pixel = self.map_line_distance.get_pixel(x as u32, y as u32)[0] as f64;
+        let pixel = self.map_line_distance.get_pixel(
+            (x * self.scale_x) as u32,
+            (y * self.scale_y) as u32)[0] as f64;
         let diff = self.config.line_distance[1] - self.config.line_distance[0];
         self.config.line_distance[0] + diff * pixel / 255.0
     }
 
+    fn map_angle(&self, x: f64, y: f64) -> f64 {
+        let angle = self.map_angle.get_pixel(
+            (x * self.scale_x) as u32,
+            (y * self.scale_y) as u32)[0] as f64 / 255.0 * TAU;
+        angle - PI // supplied u8 image is centered around 128 to deal with negative values
+    }
+
     fn map_line_max_length(&self, x: f64, y: f64) -> f64 {
-        let pixel = self.map_line_max_length.get_pixel(x as u32, y as u32)[0] as f64;
+        let pixel = self.map_line_max_length.get_pixel(
+            (x * self.scale_x) as u32,
+            (y * self.scale_y) as u32)[0] as f64;
         let diff = (self.config.line_max_length[1] - self.config.line_max_length[0]) as f64;
         self.config.line_max_length[0] as f64 + diff * pixel / 255.0
+    }
+
+    fn map_non_flat(&self, x: f64, y: f64) -> bool {
+        self.map_non_flat.get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0] == 0
     }
 
     fn collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
@@ -112,11 +128,9 @@ impl<'a> FlowlinesHatcher<'a> {
         let x1 = p.x();
         let y1 = p.y();
 
-        let rm_x1 = (x1 * self.mapping_factor as f64) as u32;
-        let rm_y1 = (y1 * self.mapping_factor as f64) as u32;
-        let a1 = self.map_angle(rm_x1, rm_y1);
+        let a1 = self.map_angle(x1, y1);
 
-        if self.map_non_flat.get_pixel(rm_x1, rm_y1)[0] == 0 {
+        if self.map_non_flat(x1, y1) {
             return None;
         }
 
@@ -137,9 +151,7 @@ impl<'a> FlowlinesHatcher<'a> {
         }
 
         if self.config.max_angle_discontinuity > 0.0 {
-            let rm_x2 = (x2 * self.mapping_factor as f64) as u32;
-            let rm_y2 = (y2 * self.mapping_factor as f64) as u32;
-            let a2 = self.map_angle(rm_x2, rm_y2);
+            let a2 = self.map_angle(x2, y2);
 
             if (a2 - a1).abs() > self.config.max_angle_discontinuity {
                 return None;
@@ -285,6 +297,7 @@ impl<'a> FlowlinesHatcher<'a> {
 }
 #[cfg(test)]
 mod tests {
+    use image::Luma;
     use super::*;
 
     #[test]
@@ -296,6 +309,7 @@ mod tests {
         let config = FlowlinesConfig::default();
 
         let hatcher = FlowlinesHatcher::new(
+            [100, 100],
             &config,
             &map_distance,
             &map_angle,
@@ -304,7 +318,7 @@ mod tests {
         );
 
         assert_eq!(
-            hatcher.map_angle(50, 50),
+            hatcher.map_angle(50.0, 50.0),
             ((127.0 / 255.0) * TAU) - PI,
             "_map_angle() expects a u8 image mapping values from [0, 255] -> [-PI, +PI]"
         );
@@ -320,7 +334,9 @@ mod tests {
         let mut config = FlowlinesConfig::default();
 
         config.starting_point_init_distance = [20.0, 20.0];
+
         let hatcher = FlowlinesHatcher::new(
+            [width, height],
             &config,
             &map_distance,
             &map_angle,
@@ -337,6 +353,7 @@ mod tests {
 
         config.starting_point_init_distance = [0.5, 0.5];
         let hatcher = FlowlinesHatcher::new(
+            [width, height],
             &config,
             &map_distance,
             &map_angle,

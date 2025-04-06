@@ -70,6 +70,7 @@ impl From<flowlines_rs::FlowlinesConfig> for FlowlinesConfig {
 
 #[pyfunction]
 fn hatch<'py>(
+    dimensions: Vec<u32>,
     config: &FlowlinesConfig,
     map_distance: PyReadonlyArrayDyn<'py, u8>,
     map_angle: PyReadonlyArrayDyn<'py, u8>,
@@ -84,6 +85,7 @@ fn hatch<'py>(
     let map_non_flat = copy_array_into_grayimage(map_non_flat).expect("could not read map_non_flat");
 
     let hatcher = flowlines_rs::FlowlinesHatcher::new(
+        [dimensions[0], dimensions[1]],
         &config,
         &map_distance,
         &map_angle,
