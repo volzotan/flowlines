@@ -40,7 +40,7 @@ fn main() {
     let map_distance = load_grayscale_image("test_data/map_distance.png");
     let map_angle = load_grayscale_image("test_data/map_angle.png");
     let map_max_length = load_grayscale_image("test_data/map_max_length.png");
-    let map_non_flat = load_grayscale_image("test_data/map_non_flat.png");
+    let map_flat = load_grayscale_image("test_data/map_flat.png");
 
     let timer_diff = Utc::now() - timer_start;
     println!(
@@ -66,7 +66,7 @@ fn main() {
         &map_distance,
         &map_angle,
         &map_max_length,
-        &map_non_flat,
+        &map_flat,
     );
     let lines: Vec<VecDeque<Point>> = hatcher.hatch().unwrap();
 

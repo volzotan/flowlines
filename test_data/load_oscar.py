@@ -38,8 +38,8 @@ with Dataset(INPUT_FILE, "r", format="NETCDF4") as data:
     )  
     mapping_angle = ((mapping_angle / math.tau) * 255).astype(np.uint8)
 
-    mapping_non_flat = np.zeros_like(magnitude, dtype=np.uint8)
-    mapping_non_flat[magnitude > MIN_INCLINATION] = 255  # uint8
+    mapping_flat = np.zeros_like(magnitude, dtype=np.uint8)
+    mapping_flat[magnitude < MIN_INCLINATION] = 255  # uint8
 
     print(np.min(magnitude), np.max(magnitude))
     magnitude = np.clip(magnitude, 0, 1)
@@ -50,12 +50,12 @@ with Dataset(INPUT_FILE, "r", format="NETCDF4") as data:
         int(mapping_angle.shape[0] * RESIZE_FACTOR),
     )
     mapping_angle = cv2.resize(mapping_angle, resize_dimensions)
-    mapping_non_flat = cv2.resize(mapping_non_flat, resize_dimensions)
+    mapping_flat = cv2.resize(mapping_flat, resize_dimensions)
     mapping_distance = cv2.resize(mapping_distance, resize_dimensions)
 
     mapping_max_length = np.full_like(mapping_angle, 255)
 
     cv2.imwrite(str(Path(OUTPUT_PATH, "map_angle.png")), mapping_angle)
-    cv2.imwrite(str(Path(OUTPUT_PATH, "map_non_flat.png")), mapping_non_flat)
+    cv2.imwrite(str(Path(OUTPUT_PATH, "map_flat.png")), mapping_flat)
     cv2.imwrite(str(Path(OUTPUT_PATH, "map_distance.png")), mapping_distance)
     cv2.imwrite(str(Path(OUTPUT_PATH, "map_max_length.png")), mapping_max_length)

@@ -59,8 +59,8 @@ mapping_angle = angles  # float
 mapping_angle += math.pi  # center around math.pi (128) so we avoid negative values
 mapping_angle = ((mapping_angle / math.tau) * 255).astype(np.uint8)
 
-mapping_non_flat = np.zeros_like(inclination, dtype=np.uint8)
-mapping_non_flat[inclination > MIN_INCLINATION] = 255  # uint8
+mapping_flat = np.zeros_like(inclination, dtype=np.uint8)
+mapping_flat[inclination < MIN_INCLINATION] = 255  # uint8
 
 mapping_distance = normalize_to_uint8(data)  # uint8
 
@@ -85,6 +85,6 @@ mapping_max_segments = blur(
 )
 
 cv2.imwrite(str(Path(OUTPUT_PATH, "map_angle.png")), mapping_angle)
-cv2.imwrite(str(Path(OUTPUT_PATH, "map_non_flat.png")), mapping_non_flat)
+cv2.imwrite(str(Path(OUTPUT_PATH, "map_flat.png")), mapping_flat)
 cv2.imwrite(str(Path(OUTPUT_PATH, "map_distance.png")), mapping_distance)
 cv2.imwrite(str(Path(OUTPUT_PATH, "map_max_segments.png")), mapping_max_segments)

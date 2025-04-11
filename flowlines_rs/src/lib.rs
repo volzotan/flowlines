@@ -39,7 +39,7 @@ pub struct FlowlinesHatcher<'a> {
     map_line_distance: &'a GrayImage,
     map_angle: &'a GrayImage,
     map_line_max_length: &'a GrayImage,
-    map_non_flat: &'a GrayImage,
+    map_flat: &'a GrayImage,
     scale_x: f64,
     scale_y: f64,
     bbox: [i32; 4],
@@ -52,7 +52,7 @@ impl<'a> FlowlinesHatcher<'a> {
         map_line_distance: &'a GrayImage,
         map_angle: &'a GrayImage,
         map_line_max_length: &'a GrayImage,
-        map_non_flat: &'a GrayImage,
+        map_flat: &'a GrayImage,
     ) -> Self {
         let bbox: [i32; 4] = [0, 0, dimensions[0] as i32, dimensions[1] as i32];
 
@@ -75,7 +75,7 @@ impl<'a> FlowlinesHatcher<'a> {
             map_line_distance,
             map_angle,
             map_line_max_length,
-            map_non_flat,
+            map_flat,
             scale_x,
             scale_y,
             bbox,
@@ -110,10 +110,10 @@ impl<'a> FlowlinesHatcher<'a> {
         self.config.line_max_length[0] as f64 + diff * pixel / 255.0
     }
 
-    fn map_non_flat(&self, x: f64, y: f64) -> bool {
-        self.map_non_flat
+    fn map_flat(&self, x: f64, y: f64) -> bool {
+        self.map_flat
             .get_pixel((x * self.scale_x) as u32, (y * self.scale_y) as u32)[0]
-            == 0
+            > 0
     }
 
     fn collision(&self, tree: &RTree<Point>, x: f64, y: f64, factor: f64) -> bool {
@@ -131,7 +131,7 @@ impl<'a> FlowlinesHatcher<'a> {
 
         let a1 = self.map_angle(x1, y1);
 
-        if self.map_non_flat(x1, y1) {
+        if self.map_flat(x1, y1) {
             return None;
         }
 
@@ -308,7 +308,7 @@ mod tests {
         let map_distance = GrayImage::new(100, 100);
         let map_angle = GrayImage::from_pixel(100, 100, Luma([127]));
         let map_max_length = GrayImage::new(100, 100);
-        let map_non_flat = GrayImage::new(100, 100);
+        let map_flat = GrayImage::new(100, 100);
         let config = FlowlinesConfig::default();
 
         let hatcher = FlowlinesHatcher::new(
@@ -317,7 +317,7 @@ mod tests {
             &map_distance,
             &map_angle,
             &map_max_length,
-            &map_non_flat,
+            &map_flat,
         );
 
         assert_eq!(
@@ -333,7 +333,7 @@ mod tests {
         let map_distance = GrayImage::new(width, height);
         let map_angle = GrayImage::from_pixel(width, height, Luma([127]));
         let map_max_length = GrayImage::new(width, height);
-        let map_non_flat = GrayImage::new(width, height);
+        let map_flat = GrayImage::new(width, height);
         let mut config = FlowlinesConfig::default();
 
         config.starting_point_init_distance = [20.0, 20.0];
@@ -344,7 +344,7 @@ mod tests {
             &map_distance,
             &map_angle,
             &map_max_length,
-            &map_non_flat,
+            &map_flat,
         );
         let starting_points = hatcher.generate_starting_points();
 
